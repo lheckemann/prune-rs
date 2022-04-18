@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 use std::ops::Bound::{Excluded, Included};
 
+use chrono::NaiveDateTime;
+use clap::{arg, command, Arg};
+
 #[derive(Clone, Debug)]
 struct NaiveTime {
     year: u16,
@@ -39,7 +42,12 @@ const MONTH_LENGTHS: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 impl Into<u64> for NaiveTime {
     fn into(self) -> u64 {
         ((self.year as u64 - 1970) * 86400 * 365)
-            + (86400 * MONTH_LENGTHS.iter().take(self.month as usize).map(|m| *m as u64).sum::<u64>())
+            + (86400
+                * MONTH_LENGTHS
+                    .iter()
+                    .take(self.month as usize)
+                    .map(|m| *m as u64)
+                    .sum::<u64>())
             + self.day as u64 * 86400
             + self.h as u64 * 3600
             + self.m as u64 * 60
@@ -76,6 +84,7 @@ impl From<u64> for NaiveTime {
     }
 }
 
+#[derive(Debug, Clone)]
 struct PeriodicRetentionPolicy {
     interval: u64,
     count: u32,
@@ -102,20 +111,13 @@ where
         } // Empty input, nothing to do.
         Some((&date, _)) => date,
     };
-    eprintln!("latest: {}", latest_date);
     let mut keep: BTreeMap<u64, T> = BTreeMap::new();
     keep.insert(latest_date, inputs.remove(&latest_date).unwrap());
     for policy in policies {
         for n in 0..policy.count as u64 {
-            eprintln!("n: {}", n);
             let range = (
                 latest_date - (n + 1) * policy.interval,
                 latest_date - n * policy.interval,
-            );
-            eprintln!(
-                "Block from {:?} to {:?}",
-                NaiveTime::from(range.0),
-                NaiveTime::from(range.1)
             );
             let range = (Excluded(range.0), Included(range.1));
             if keep.range(range).next().is_some() {
@@ -124,12 +126,53 @@ where
             }
             if let Some((&k, _)) = inputs.range(range).next_back() {
                 keep.insert(k, inputs.remove(&k).unwrap());
-            } else {
-                eprintln!("Nothing found for block.");
             }
         }
     }
     RetentionResult { drop: inputs, keep }
+}
+
+fn main() -> std::io::Result<()> {
+    let args = command!()
+        .arg(
+            Arg::new("policy")
+                .short('p')
+                .help("Define a periodic retention policy")
+                .required(true)
+                .multiple_occurrences(true)
+                .number_of_values(2)
+                .value_names(&["duration", "count"]),
+        )
+        .arg(arg!(<path> "Path to prune"))
+        .get_matches();
+    let mut policy_defs = args.values_of("policy").unwrap();
+    let mut policies = Vec::new();
+    while let (Some(interval), Some(count)) = (policy_defs.next(), policy_defs.next()) {
+        policies.push(PeriodicRetentionPolicy {
+            interval: u64::from_str_radix(interval, 10)
+                .unwrap_or_else(|_| panic!("Invalid interval '{}'", interval)),
+            count: u32::from_str_radix(count, 10)
+                .unwrap_or_else(|_| panic!("Invalid count '{}'", count)),
+        })
+    }
+    let mut snaps = BTreeMap::new();
+    for entry in std::fs::read_dir(args.value_of("path").unwrap())? {
+        let name = match entry?.file_name().into_string() {
+            Ok(name) => name,
+            Err(_) => continue,
+        };
+        if let Ok(date) = NaiveDateTime::parse_from_str(&name, "%Y%m%d-%H:%M") {
+            snaps.insert(date.timestamp() as u64, name);
+        }
+    }
+    let RetentionResult { keep, drop } = apply(&policies, snaps);
+    for snap in drop.iter() {
+        println!("{}", snap.1);
+    }
+    for snap in keep.iter() {
+        eprintln!("Keep {}", snap.1);
+    }
+    Ok(())
 }
 
 #[cfg(test)]
