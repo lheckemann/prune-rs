@@ -4,86 +4,6 @@ use std::ops::Bound::{Excluded, Included};
 use chrono::NaiveDateTime;
 use clap::{arg, command, Arg};
 
-#[derive(Clone, Debug)]
-struct NaiveTime {
-    year: u16,
-    month: u8,
-    day: u8,
-    h: u8,
-    m: u8,
-    s: u8,
-}
-
-impl NaiveTime {
-    fn new(year: u16, month: u8, day: u8, h: u8, m: u8, s: u8) -> Self {
-        NaiveTime {
-            year,
-            month,
-            day,
-            h,
-            m,
-            s,
-        }
-    }
-    fn date(year: u16, month: u8, day: u8) -> Self {
-        NaiveTime {
-            year,
-            month,
-            day,
-            h: 0,
-            m: 0,
-            s: 0,
-        }
-    }
-}
-
-const MONTH_LENGTHS: [u8; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-impl Into<u64> for NaiveTime {
-    fn into(self) -> u64 {
-        ((self.year as u64 - 1970) * 86400 * 365)
-            + (86400
-                * MONTH_LENGTHS
-                    .iter()
-                    .take(self.month as usize)
-                    .map(|m| *m as u64)
-                    .sum::<u64>())
-            + self.day as u64 * 86400
-            + self.h as u64 * 3600
-            + self.m as u64 * 60
-            + self.s as u64
-    }
-}
-impl From<u64> for NaiveTime {
-    fn from(v: u64) -> NaiveTime {
-        let year = (v / (86400 * 365) + 1970) as u16;
-        let year_day = (v % (86400 * 365)) / 86400;
-        let mut day = year_day;
-        let mut month = 1;
-        for month_length in MONTH_LENGTHS {
-            let month_length = month_length as u64;
-            if day < month_length {
-                break;
-            }
-            month += 1;
-            day -= month_length;
-        }
-        let day = day as u8;
-        let day_second = v % 86400;
-        let h = (day_second / 3600) as u8;
-        let m = (day_second % 3600 / 60) as u8;
-        let s = (day_second % 60) as u8;
-        NaiveTime {
-            year,
-            month,
-            day,
-            h,
-            m,
-            s,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 struct PeriodicRetentionPolicy {
     interval: u64,
@@ -177,7 +97,14 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{NaiveDate, NaiveTime};
+
     use super::*;
+
+    /// Parse a date into a NaiveDateTime according to a fixed format and return the timestamp as a u64.
+    fn date(string: &str) -> u64 {
+        NaiveDateTime::parse_from_str(string, "%Y-%m-%dT%H:%M:%S").unwrap().timestamp() as u64
+    }
 
     #[test]
     fn test_keep_single() {
@@ -198,13 +125,14 @@ mod tests {
     #[test]
     fn test_keep_multiple() {
         let mut items = BTreeMap::new();
+        let times: Vec<NaiveTime> = (0..5).map(|n| NaiveTime::from_hms(n * 5, 0, 0)).collect();
         for d in 1..31 {
-            items.insert(NaiveTime::date(2020, 01, d).into(), ());
-            items.insert(NaiveTime::new(2020, 01, d, 04, 00, 00).into(), ());
-            items.insert(NaiveTime::new(2020, 01, d, 08, 00, 00).into(), ());
-            items.insert(NaiveTime::new(2020, 01, d, 12, 00, 00).into(), ());
-            items.insert(NaiveTime::new(2020, 01, d, 16, 00, 00).into(), ());
-            items.insert(NaiveTime::new(2020, 01, d, 20, 00, 00).into(), ());
+            for time in times.iter() {
+                items.insert(
+                    NaiveDateTime::new(NaiveDate::from_ymd(2020, 01, d), *time).timestamp() as u64,
+                    (),
+                );
+            }
         }
         let len_before = items.len();
         let policies = [
@@ -228,7 +156,7 @@ mod tests {
         assert_eq!(drop.len(), 0);
 
         // We should only drop one snapshot if we get a slightly more recent one available
-        items.insert(NaiveTime::new(2020, 01, 31, 20, 30, 00).into(), ());
+        items.insert(date("2020-01-31T20:30:00"), ());
         let RetentionResult {
             keep: mut items,
             drop,
@@ -236,7 +164,7 @@ mod tests {
         assert_eq!(drop.len(), 1);
 
         // Now let's advance a bit more
-        items.insert(NaiveTime::date(2020, 03, 01).into(), ());
+        items.insert(date("2020-03-01T00:00:00"), ());
         let RetentionResult {
             keep: mut items,
             drop,
@@ -245,10 +173,8 @@ mod tests {
         // we're well beyond its timespan, but two of the old weeks
         // plus the most recent one should be kept
         for &day in items.keys() {
-            eprintln!("{:?}", NaiveTime::from(day));
+            eprintln!("{:?}", NaiveDateTime::from_timestamp(day as i64, 0));
         }
         assert_eq!(items.len(), 3);
-
-        panic!();
     }
 }
