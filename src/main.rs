@@ -34,10 +34,11 @@ where
     let mut keep: BTreeMap<u64, T> = BTreeMap::new();
     keep.insert(latest_date, inputs.remove(&latest_date).unwrap());
     for policy in policies {
-        for n in 0..policy.count as u64 {
+        let reference_date = latest_date - (latest_date % policy.interval) + policy.interval;
+        for n in 0..(policy.count+1) as u64 {
             let range = (
-                latest_date - (n + 1) * policy.interval,
-                latest_date - n * policy.interval,
+                reference_date - (n + 1) * policy.interval,
+                reference_date - n * policy.interval,
             );
             let range = (Excluded(range.0), Included(range.1));
             if keep.range(range).next().is_some() {
