@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::ops::Bound::{Excluded, Included};
 
 use chrono::NaiveDateTime;
-use clap::{arg, command, Arg};
+use clap::{command, Arg};
 
 #[derive(Debug, Clone)]
 struct PeriodicRetentionPolicy {
@@ -35,7 +35,7 @@ where
     keep.insert(latest_date, inputs.remove(&latest_date).unwrap());
     for policy in policies {
         let reference_date = latest_date - (latest_date % policy.interval) + policy.interval;
-        for n in 0..(policy.count+1) as u64 {
+        for n in 0..(policy.count + 1) as u64 {
             let range = (
                 reference_date - (n + 1) * policy.interval,
                 reference_date - n * policy.interval,
@@ -114,7 +114,9 @@ mod tests {
 
     /// Parse a date into a NaiveDateTime according to a fixed format and return the timestamp as a u64.
     fn date(string: &str) -> u64 {
-        NaiveDateTime::parse_from_str(string, "%Y-%m-%dT%H:%M:%S").unwrap().timestamp() as u64
+        NaiveDateTime::parse_from_str(string, "%Y-%m-%dT%H:%M:%S")
+            .unwrap()
+            .timestamp() as u64
     }
 
     #[test]
