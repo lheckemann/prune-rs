@@ -64,7 +64,12 @@ fn main() -> std::io::Result<()> {
                 .number_of_values(2)
                 .value_names(&["duration", "count"]),
         )
-        .arg(arg!(<path> "Path to prune"))
+        .arg(
+            Arg::new("format")
+                .short('f')
+                .help("Format to parse the date strings on stdin with")
+                .default_value("%Y%m%d-%H:%M"),
+        )
         .get_matches();
     let mut policy_defs = args.values_of("policy").unwrap();
     let mut policies = Vec::new();
@@ -77,14 +82,19 @@ fn main() -> std::io::Result<()> {
         })
     }
     let mut snaps = BTreeMap::new();
-    for entry in std::fs::read_dir(args.value_of("path").unwrap())? {
-        let name = match entry?.file_name().into_string() {
-            Ok(name) => name,
-            Err(_) => continue,
-        };
-        if let Ok(date) = NaiveDateTime::parse_from_str(&name, "%Y%m%d-%H:%M") {
-            snaps.insert(date.timestamp() as u64, name);
+    let stdin = std::io::stdin();
+    let mut line = String::new();
+    while let Ok(len) = stdin.read_line(&mut line) {
+        if len == 0 {
+            break;
         }
+        line = line.trim_end().into();
+        if let Ok(date) = NaiveDateTime::parse_from_str(&line, args.value_of("format").unwrap()) {
+            snaps.insert(date.timestamp() as u64, line.clone());
+        } else {
+            eprintln!("Could not parse line: '{}'", &line);
+        }
+        line.clear();
     }
     let RetentionResult { keep, drop } = apply(&policies, snaps);
     for snap in drop.iter() {
