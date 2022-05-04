@@ -1,3 +1,5 @@
+/* Copyright (C) 2022 Linus Heckemann. Licensed under the EUPL-1.2-or-later. */
+
 use std::collections::BTreeMap;
 use std::ops::Bound::{Excluded, Included};
 
