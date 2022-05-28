@@ -72,6 +72,11 @@ fn main() -> std::io::Result<()> {
                 .help("Format to parse the date strings on stdin with")
                 .default_value("%Y%m%d-%H:%M"),
         )
+        .arg(
+            Arg::new("verbose")
+                .short('v')
+                .help("Print the snapshots which are being kept on stderr"),
+        )
         .get_matches();
     let mut policy_defs = args.values_of("policy").unwrap();
     let mut policies = Vec::new();
@@ -102,8 +107,10 @@ fn main() -> std::io::Result<()> {
     for snap in drop.iter() {
         println!("{}", snap.1);
     }
-    for snap in keep.iter() {
-        eprintln!("Keep {}", snap.1);
+    if args.is_present("verbose") {
+        for snap in keep.iter() {
+            eprintln!("Keep {}", snap.1);
+        }
     }
     Ok(())
 }

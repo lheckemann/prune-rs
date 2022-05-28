@@ -27,33 +27,6 @@ $ ls -d /btrfs/snaps/safe-* |
 /btrfs/snaps/safe-20220504-14:10
 /btrfs/snaps/safe-20220504-14:15
 /btrfs/snaps/safe-20220504-14:20
-Keep /btrfs/snaps/safe-20220420-12:20
-Keep /btrfs/snaps/safe-20220427-22:40
-Keep /btrfs/snaps/safe-20220428-20:10
-Keep /btrfs/snaps/safe-20220429-17:45
-Keep /btrfs/snaps/safe-20220501-00:00
-Keep /btrfs/snaps/safe-20220502-00:00
-Keep /btrfs/snaps/safe-20220502-23:35
-Keep /btrfs/snaps/safe-20220503-15:00
-Keep /btrfs/snaps/safe-20220503-16:00
-Keep /btrfs/snaps/safe-20220503-17:00
-Keep /btrfs/snaps/safe-20220503-18:00
-Keep /btrfs/snaps/safe-20220503-19:00
-Keep /btrfs/snaps/safe-20220503-20:00
-Keep /btrfs/snaps/safe-20220503-21:00
-Keep /btrfs/snaps/safe-20220503-22:00
-Keep /btrfs/snaps/safe-20220503-22:35
-Keep /btrfs/snaps/safe-20220504-10:00
-Keep /btrfs/snaps/safe-20220504-11:00
-Keep /btrfs/snaps/safe-20220504-12:00
-Keep /btrfs/snaps/safe-20220504-13:00
-Keep /btrfs/snaps/safe-20220504-14:00
-Keep /btrfs/snaps/safe-20220504-14:25
-Keep /btrfs/snaps/safe-20220504-14:30
-Keep /btrfs/snaps/safe-20220504-14:35
-Keep /btrfs/snaps/safe-20220504-14:40
-Keep /btrfs/snaps/safe-20220504-14:45
-Keep /btrfs/snaps/safe-20220504-14:50
 ```
 
 This can be used in a script, e.g. the one that produces the snapshots. Mine looks like this, and runs every 5 minutes:
